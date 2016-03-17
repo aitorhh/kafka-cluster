@@ -1,0 +1,33 @@
+#!/bin/bash
+# Build ueh from source
+
+if [ ${DIB_DEBUG_TRACE:-0} -gt 0 ]; then
+    set -x
+fi
+set -eu
+set -o pipefail
+
+SCRIPT_DIR=$(dirname $0)
+NAME="kafka"
+PACKAGE="/tmp/$NAME"
+[ -n "$PACKAGE" ] || echo "$NAME package not available"
+
+cd $PACKAGE
+mkdir -p /opt/$NAME
+cp -R * /opt/$NAME
+
+#
+mkdir -p /etc/$NAME
+
+# Create service
+mkdir -p /etc/supervisor/conf.d/
+mkdir -p /var/log/$NAME/
+mkdir -p /var/log/zookeeper/
+
+cp ${SCRIPT_DIR}/$NAME.conf /etc/supervisor/conf.d/
+cp ${SCRIPT_DIR}/zookeeper.conf /etc/supervisor/conf.d/
+
+# Disable ipv6 system wide
+echo "net.ipv6.conf.all.disable_ipv6 = 1" >> /etc/sysctl.conf
+echo "net.ipv6.conf.conf.disable_ipv6 = 1" >> /etc/sysctl.conf
+echo "net.ipv6.conf.lo.disable_ipv6 = 1" >> /etc/sysctl.conf

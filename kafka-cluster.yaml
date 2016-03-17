@@ -1,0 +1,96 @@
+heat_template_version: 2014-10-16
+
+description: >
+  Simple template to test heat deployment
+
+parameters:
+
+  key_name:
+    type: string
+    label: "Key-pair for the servers"
+    default: "quantum"
+
+  public_network:
+    type: string
+    label: "Name of the public network"
+    default: "net04_ext"
+
+  dns:
+    type: comma_delimited_list
+    label: "DNS nameservers"
+    description: "Comma separated list of DNS nameservers for the private network"
+    default: "8.8.8.8"
+
+  kafka_image:
+    type: string
+    label: "id of the image with kafka and zookeeper"
+
+  count:
+    type: string
+    label: "number of instance for the kafka cluster"
+    default: 1
+
+resources:
+
+  oam_net:
+    type: OS::Neutron::Net
+    properties:
+      name: "oam-network"
+
+  oam_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: "oam-network-subnet"
+      network_id: { get_resource: oam_net }
+      cidr: 192.168.0.0/24
+      gateway_ip: 192.168.0.1
+      allocation_pools:
+         - start: 192.168.0.2
+           end: 192.168.0.254
+      dns_nameservers: { get_param: dns }
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info:
+        network: { get_param: public_network}
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_resource: oam_subnet }
+
+  asg:
+    type: OS::Heat::ResourceGroup
+    depends_on: router_interface
+    properties:
+      count: {get_param: count}
+      resource_def:
+        type: kafka-server.yaml
+        properties:
+          name: "kafka_%index%"
+          id: "%index%"
+          key_name: { get_param: key_name }
+          image: {get_param: kafka_image}
+          flavor: m1.2heat
+          net: {get_resource: oam_net}
+          public_network: {get_param: public_network}
+
+outputs:
+  zookeeper_list_floating:
+    description: >
+      This is a list of server names that are part of the group.
+    value: { get_attr: [asg, floatingip] }
+  kafka_list_floating:
+    description: >
+      This is a list of server names that are part of the group.
+    value: { get_attr: [asg, floatingip] }
+  zookeeper_list:
+    description: >
+      This is a list of server names that are part of the group.
+    value: { get_attr: [asg, ipaddres] }
+  kafka_list:
+    description: >
+      This is a list of server names that are part of the group.
+    value: { get_attr: [asg, ipaddres] }

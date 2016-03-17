@@ -1,0 +1,85 @@
+heat_template_version: 2014-10-16
+
+description: >
+  Simple template to test heat deployment
+
+parameters:
+  name:
+    type: string
+    label: "unique name for the server"
+
+  id:
+    type: string
+    label: "unique identifier in the group"
+
+  key_name:
+    type: string
+    label: "Key-pair for the servers"
+    default: "quantum"
+
+  image:
+    type: string
+    label: "id of the image with kafka and zookeeper"
+
+  net:
+    type: string
+    label: "name of the network to be connected"
+
+  public_network:
+    type: string
+    label: "name of the public network"
+
+  flavor:
+    type: string
+    label: "flavor for the kafka server"
+    default: m1.2heat
+
+resources:
+  kafka_config:
+    type: OS::Heat::CloudConfig
+    properties:
+      cloud_config:
+        merge_how: 'dict(recurse_array,no_replace)+list(append)'
+        write_files:
+          - path: /etc/kafka/server.properties
+            content: | 
+                  broker.id=broker_id
+                  listeners=PLAINTEXT://0.0.0.0:9092
+                  zookeeper.connect=zookeeper_ip:2181
+          - path: /etc/kafka/zookeeper.properties
+            content: |
+                  dataDir=/tmp/zookeeper
+                  maxClientCnxns=0
+                  clientAddressPort=0.0.0.0
+                  clientPort=2181
+
+  port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_param: net }
+
+  floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: public_network }
+      port_id: { get_resource: port }
+
+  kafka_server:
+    type: OS::Nova::Server
+    properties:
+      name: { get_param: name }
+      key_name: { get_param: key_name }
+      image: {get_param: image}
+      flavor: {get_param: flavor}
+      networks:
+        - port: { get_resource: port }
+      user_data_format: RAW
+      user_data: { get_resource: kafka_config }
+
+outputs:
+  name:
+    value: {get_attr: [kafka_server, name]}
+  ipaddres:
+    value: {get_attr: [kafka_server, first_address]}
+  floatingip:
+    value: {get_attr: [floating_ip, floating_ip_address]}

@@ -83,3 +83,5 @@ outputs:
     value: {get_attr: [kafka_server, first_address]}
   floatingip:
     value: {get_attr: [floating_ip, floating_ip_address]}
+  port:
+    value: {get_resource: port}

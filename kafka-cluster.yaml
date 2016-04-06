@@ -94,3 +94,5 @@ outputs:
     description: >
       This is a list of server names that are part of the group.
     value: { get_attr: [asg, ipaddres] }
+  ports_ids:
+    value: { get_attr: [asg, port] }
